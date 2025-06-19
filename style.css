@@ -1,0 +1,92 @@
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Georgia', serif;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/Bacchus_Caravaggio.jpg') no-repeat center center fixed;
+    background-size: cover;
+}
+
+.game-container {
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    border: 2px solid #8B4513;
+    width: 80%;
+    height: 80%;
+    max-width: 1200px;
+    max-height: 900px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+h1 {
+    font-family: 'Playfair Display', serif;
+    color: #6A050B;
+    font-size: clamp(2em, 5vw, 3.5em);
+    margin-bottom: 5px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+#score-container {
+    font-size: clamp(1em, 2vw, 1.5em);
+    margin-bottom: 15px;
+    color: #4B0082;
+}
+
+canvas {
+    background-color: #FAEBD7;
+    border: 3px solid #5C4033;
+    display: block;
+    margin: 0 auto;
+    box-sizing: border-box;
+
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
+    width: 65%;
+}
+
+@media (max-width: 768px) {
+    .game-container {
+        padding: 15px;
+        width: 90%;
+        height: 90%;
+    }
+    h1 {
+        font-size: 2.5em;
+    }
+    #score-container {
+        font-size: 1.2em;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-container {
+        padding: 10px;
+        width: 95%;
+        height: 95%;
+    }
+    h1 {
+        font-size: 2em;
+    }
+    #score-container {
+        font-size: 1em;
+    }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Georgia&family=Playfair+Display:wght@700&display=swap');
