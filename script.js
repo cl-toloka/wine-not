@@ -62,9 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function preloadImages() {
         return new Promise((resolve, reject) => {
-            bacchusImage.src = '/bacchus_head.png';
-            wineGlassImage.src = '/wine_glass_icon.png';
-            ghostImage.src = '/ghost.png';
+            bacchusImage.src = 'bacchus_head.png';
+            wineGlassImage.src = 'wine_glass_icon.png';
+            ghostImage.src = 'ghost.png';
 
             const checkImagesLoaded = () => {
                 imagesLoadedCount++;
