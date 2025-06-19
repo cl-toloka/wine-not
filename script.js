@@ -14,13 +14,24 @@ document.addEventListener('DOMContentLoaded', () => {
         isMoving: false,
         stepSize: 4
     };
+    let ghost = {
+        x: 0,
+        y: 0,
+        radius: 20,
+        speed: 2,
+        targetX: 0,
+        targetY: 0,
+        isMoving: false
+    };
     let wineGlasses = [];
     let gameRunning = true;
 
     let bacchusImage = new Image();
     let wineGlassImage = new Image();
+    let ghostImage = new Image();
+
     let imagesLoadedCount = 0;
-    const totalImagesToLoad = 2;
+    const totalImagesToLoad = 3;
 
     const MAZE_GRID_WIDTH = 21;
     const MAZE_GRID_HEIGHT = 17;
@@ -33,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [1,0,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,0,1],
         [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
         [1,1,1,1,0,1,1,1,0,0,1,0,0,1,1,1,0,1,1,1,1],
-        [0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0],
+        [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
         [1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1],
         [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
         [1,0,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,0,1],
@@ -53,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise((resolve, reject) => {
             bacchusImage.src = '/public/bacchus_head.png';
             wineGlassImage.src = '/public/wine_glass_icon.png';
+            ghostImage.src = '/public/ghost.png';
 
             const checkImagesLoaded = () => {
                 imagesLoadedCount++;
@@ -63,39 +75,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
             bacchusImage.onload = checkImagesLoaded;
             bacchusImage.onerror = () => {
-                console.error("Failed to load Bacchus image.");
-                alert("Error: Could not load Bacchus image. Please check 'bacchus_head.png' path.");
+                console.error("Failed to load Bacchus image. Please check 'bacchus_head.png' path.");
                 reject(new Error('Failed to load Bacchus image.'));
             };
 
             wineGlassImage.onload = checkImagesLoaded;
             wineGlassImage.onerror = () => {
-                console.error("Failed to load wine glass image.");
-                alert("Error: Could not load wine glass image. Please check 'wine_glass_icon.png' path.");
+                console.error("Failed to load wine glass image. Please check 'wine_glass_icon.png' path.");
                 reject(new Error('Failed to load wine glass image.'));
+            };
+
+            ghostImage.onload = checkImagesLoaded;
+            ghostImage.onerror = () => {
+                console.error("Failed to load ghost image. Please check 'ghost.png' path.");
+                alert("Error: Could not load ghost image. Please make sure 'ghost.png' is in the same folder.");
+                reject(new Error('Failed to load ghost image.'));
             };
         });
     }
 
-    // --- Game Setup Functions ---
+    function getRandomValidCell() {
+        const cellWidth = canvas.width / MAZE_GRID_WIDTH;
+        const cellHeight = canvas.height / MAZE_GRID_HEIGHT;
+        let randCol, randRow;
+        do {
+            randCol = Math.floor(Math.random() * MAZE_GRID_WIDTH);
+            randRow = Math.floor(Math.random() * MAZE_GRID_HEIGHT);
+        } while (MAZE_LAYOUT_DATA[randRow][randCol] === 1 ||
+                 (randRow === BACCHUS_START_ROW && randCol === BACCHUS_START_COL));
+        return {
+            x: randCol * cellWidth + cellWidth / 2,
+            y: randRow * cellHeight + cellHeight / 2,
+            gridCol: randCol,
+            gridRow: randRow
+        };
+    }
 
     function resizeCanvas() {
         const container = document.querySelector('.game-container');
-        const availableWidth = container.clientWidth - (2 * 20);
-        const titleHeight = document.querySelector('h1').offsetHeight;
-        const scoreContainerHeight = document.getElementById('score-container').offsetHeight;
-        const availableHeight = container.clientHeight - (2 * 20) - titleHeight - scoreContainerHeight;
+        const headerHeight = document.querySelector('h1').offsetHeight;
+        const scoreHeight = document.getElementById('score-container').offsetHeight;
+        const containerPadding = 2 * 20;
+
+        const availableWidth = container.clientWidth - containerPadding;
+        const availableHeight = container.clientHeight - containerPadding - headerHeight - scoreHeight;
 
         const mazeAspectRatio = MAZE_GRID_WIDTH / MAZE_GRID_HEIGHT;
 
-        let newCanvasWidth, newCanvasHeight;
+        let newCanvasWidth;
+        let newCanvasHeight;
 
-        if (availableWidth / mazeAspectRatio <= availableHeight) {
-            newCanvasWidth = availableWidth;
-            newCanvasHeight = availableWidth / mazeAspectRatio;
-        } else {
+        newCanvasWidth = availableWidth;
+        newCanvasHeight = newCanvasWidth / mazeAspectRatio;
+
+        if (newCanvasHeight > availableHeight) {
             newCanvasHeight = availableHeight;
-            newCanvasWidth = availableHeight * mazeAspectRatio;
+            newCanvasWidth = newCanvasHeight * mazeAspectRatio;
         }
 
         canvas.width = newCanvasWidth;
@@ -103,14 +138,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cellWidth = canvas.width / MAZE_GRID_WIDTH;
         const cellHeight = canvas.height / MAZE_GRID_HEIGHT;
+
         bacchus.radius = cellWidth * 0.45;
         bacchus.stepSize = Math.max(2, Math.floor(cellWidth / 10));
-
         bacchus.x = BACCHUS_START_COL * cellWidth + cellWidth / 2;
         bacchus.y = BACCHUS_START_ROW * cellHeight + cellHeight / 2;
         bacchus.targetX = bacchus.x;
         bacchus.targetY = bacchus.y;
         bacchus.isMoving = false;
+        bacchus.direction = 'right';
+
+        ghost.radius = cellWidth * 0.45;
+        if (!gameRunning || !ghost.isMoving) {
+            const initialGhostCell = getRandomValidCell();
+            ghost.x = initialGhostCell.x;
+            ghost.y = initialGhostCell.y;
+            ghost.targetX = ghost.x;
+            ghost.targetY = ghost.y;
+            ghost.isMoving = false;
+        } else {
+            const currentGhostGridCol = Math.round((ghost.x - cellWidth / 2) / cellWidth);
+            const currentGhostGridRow = Math.round((ghost.y - cellHeight / 2) / cellHeight);
+            ghost.x = currentGhostGridCol * cellWidth + cellWidth / 2;
+            ghost.y = currentGhostGridRow * cellHeight + cellHeight / 2;
+            ghost.targetX = ghost.x;
+            ghost.targetY = ghost.y;
+            ghost.isMoving = false;
+        }
 
         generateMazeAndWineGlasses();
     }
@@ -129,7 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     maze[r][c] = 1;
                 } else {
                     maze[r][c] = 0;
-                    if (!(r === BACCHUS_START_ROW && c === BACCHUS_START_COL)) {
+                    const ghostGridCol = Math.round((ghost.x - cellWidth / 2) / cellWidth);
+                    const ghostGridRow = Math.round((ghost.y - cellHeight / 2) / cellHeight);
+                    if (!(r === BACCHUS_START_ROW && c === BACCHUS_START_COL) &&
+                        !(r === ghostGridRow && c === ghostGridCol)
+                       ) {
                         wineGlasses.push({
                             x: c * cellWidth + cellWidth / 2,
                             y: r * cellHeight + cellHeight / 2,
@@ -182,6 +240,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function drawGhost() {
+        try {
+            ctx.drawImage(ghostImage,
+                          ghost.x - ghost.radius,
+                          ghost.y - ghost.radius,
+                          ghost.radius * 2,
+                          ghost.radius * 2);
+        } catch (e) {
+            console.error("Error drawing ghost image:", e);
+        }
+    }
+
     function drawMaze() {
         try {
             const cellWidth = canvas.width / MAZE_GRID_WIDTH;
@@ -206,6 +276,69 @@ document.addEventListener('DOMContentLoaded', () => {
         const distance = Math.sqrt(dx * dx + dy * dy);
         return distance < (obj1.radius + obj2.radius * 0.8);
     }
+
+    function moveGhost() {
+        if (ghost.isMoving) {
+            const dx = ghost.targetX - ghost.x;
+            const dy = ghost.targetY - ghost.y;
+
+            if (dx !== 0) {
+                if (Math.abs(dx) <= ghost.speed) {
+                    ghost.x = ghost.targetX;
+                } else {
+                    ghost.x += Math.sign(dx) * ghost.speed;
+                }
+            }
+
+            if (dy !== 0) {
+                if (Math.abs(dy) <= ghost.speed) {
+                    ghost.y = ghost.targetY;
+                } else {
+                    ghost.y += Math.sign(dy) * ghost.speed;
+                }
+            }
+
+            if (ghost.x === ghost.targetX && ghost.y === ghost.targetY) {
+                ghost.isMoving = false;
+            }
+        } else {
+            const cellWidth = canvas.width / MAZE_GRID_WIDTH;
+            const cellHeight = canvas.height / MAZE_GRID_HEIGHT;
+
+            const currentGridCol = Math.round((ghost.x - cellWidth / 2) / cellWidth);
+            const currentGridRow = Math.round((ghost.y - cellHeight / 2) / cellHeight);
+
+            const possibleMoves = ['up', 'down', 'left', 'right'];
+            let validMoveFound = false;
+            let attempts = 0;
+            const maxAttempts = 10;
+
+            while (!validMoveFound && attempts < maxAttempts) {
+                const randomDirection = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+
+                let nextGridCol = currentGridCol;
+                let nextGridRow = currentGridRow;
+
+                switch (randomDirection) {
+                    case 'up': nextGridRow--; break;
+                    case 'down': nextGridRow++; break;
+                    case 'left': nextGridCol--; break;
+                    case 'right': nextGridCol++; break;
+                }
+
+                if (nextGridCol >= 0 && nextGridCol < MAZE_GRID_WIDTH &&
+                    nextGridRow >= 0 && nextGridRow < MAZE_GRID_HEIGHT &&
+                    MAZE_LAYOUT_DATA[nextGridRow][nextGridCol] === 0) {
+                    ghost.targetX = nextGridCol * cellWidth + cellWidth / 2;
+                    ghost.targetY = nextGridRow * cellHeight + cellHeight / 2;
+                    ghost.isMoving = true;
+                    validMoveFound = true;
+                }
+                attempts++;
+            }
+        }
+    }
+
 
     function updateGame() {
         if (!gameRunning) return;
@@ -238,8 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 bacchus.isMoving = false;
             }
         }
-
         drawBacchus();
+
+        moveGhost();
+        drawGhost();
 
         for (let i = wineGlasses.length - 1; i >= 0; i--) {
             if (checkCollision(bacchus, wineGlasses[i])) {
@@ -250,11 +385,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (wineGlasses.length === 0) {
                     gameRunning = false;
                     alert('Congratulations! Bacchus is full! You drank all the wine!');
+                    location.reload();
+                    return;
                 }
             }
         }
-
         wineGlasses.forEach(drawWineGlass);
+
+        if (checkCollision(bacchus, ghost)) {
+            gameRunning = false;
+            alert(`Game Over! Bacchus got caught by the ghost! You drank ${score} wines.`);
+            location.reload();
+            return;
+        }
 
         requestAnimationFrame(updateGame);
     }
